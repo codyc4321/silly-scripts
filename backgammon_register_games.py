@@ -9,6 +9,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 
+# webdriver wait and is visible
+# https://stackoverflow.com/questions/72754651/attributeerror-webdriver-object-has-no-attribute-find-element-by-xpath
 
 HOST_URL = "https://zooescape.com"
 
@@ -24,7 +26,7 @@ def log_in(driver):
     driver.find_element("id", "userName").send_keys("codyc4321")
     password = getpass("Please enter your password: ")
     driver.find_element("id", "password").send_keys(password)
-    driver.find_element_by_xpath("//input[@value='Log in']").click()
+    driver.find_element("xpath", "//input[@value='Log in']").click()
 
 
 def get_games_to_join(driver):
@@ -52,7 +54,7 @@ def get_games_to_join(driver):
 def join_a_game(game_url, driver):
     driver.get(game_url)
     time.sleep(4)
-    driver.find_element_by_xpath("//input[@value='Join Game']").click()
+    driver.find_element("xpath", "//input[@value='Join Game']").click()
     driver.get(JOIN_GAME_URL)
     time.sleep(4)
 
@@ -60,9 +62,9 @@ def join_a_game(game_url, driver):
 def start_a_new_game(driver):
     driver.get(JOIN_GAME_URL)
     time.sleep(3)
-    select = Select(driver.find_element_by_id('game_start_rating_min'))
+    select = Select(driver.find_element("id", "game_start_rating_min"))
     select.select_by_value(MINIMUM_CHALLENGE_RATING)
-    driver.find_element_by_xpath("//input[@value=' Start Game ']").click()
+    driver.find_element("xpath", "//input[@value=' Start Game ']").click()
     if GAME_START_ERROR_MESSAGE in driver.page_source:
         print("games full!")
         time.sleep(5)
