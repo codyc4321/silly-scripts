@@ -14,26 +14,56 @@ from selenium.webdriver.support.ui import Select
 
 HOST_URL = "https://zooescape.com"
 
+BACKGAMMON_ROOM = "https://zooescape.com/backgammon-room.pl"
+
 JOIN_GAME_URL = "https://zooescape.com/game-join.pl?v=200"
 
 MINIMUM_CHALLENGE_RATING = "1675"
 
 GAME_START_ERROR_MESSAGE = "Unable to start game since"
 
+MAX_GAMES = 280
+
+
+def determine_active_games(driver):
+    print("entering active games now")
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    large_divs = soup.find_all("div", class_="large")
+    for div in large_divs:
+        text = div.text.strip().lower()
+        print(text)
+        if "my backgammon games" in text:
+            print("we got it!")
+            games_count_span = div.find("span", class_="xsmall")
+            games_count = int(games_count_span.text.replace("(", "").replace(")", "").strip())
+            return games_count
+    
 
 def log_in(driver):
-    driver.get("https://zooescape.com")
-    driver.find_element("id", "userName").send_keys("codyc4321")
-    password = getpass("Please enter your password: ")
-    driver.find_element("id", "password").send_keys(password)
-    driver.find_element("xpath", "//input[@value='Log in']").click()
+    
+    def attempt_login(driver):
+        driver.get("https://zooescape.com")
+        driver.find_element("id", "userName").send_keys("codyc4321")
+        password = getpass("Please enter your password: ")
+        driver.find_element("id", "password").send_keys(password)
+        driver.find_element("xpath", "//input[@value='Log in']").click()
+        time.sleep(3)
+
+    while True:
+        attempt_login(driver)
+        page_soup = BeautifulSoup(driver.page_source, "html.parser")
+        login_confirmation_tag = page_soup.find("a", id="ze_link_codyc4321")
+        if not login_confirmation_tag:
+            print("\nSorry, login failed. Try again")
+        else:
+            break
 
 
 def get_games_to_join(driver):
     # filter by rating
     driver.get(JOIN_GAME_URL)
     time.sleep(3)
-    join_games_soup = BeautifulSoup(driver.page_source)
+    join_games_soup = BeautifulSoup(driver.page_source, "html.parser")
     relative_games_to_join = []
     a_tags = join_games_soup.find_all("a")
     for a_tag in a_tags:
@@ -74,20 +104,28 @@ def start_a_new_game(driver):
 
 
 
-driver = webdriver.Chrome()
-log_in(driver)
-driver.get("https://zooescape.com/backgammon-room.pl")
-time.sleep(3)
-games_to_join = get_games_to_join(driver)
+if __name__ == "__main__":
+    driver = webdriver.Chrome()
+    log_in(driver)
+    driver.get(BACKGAMMON_ROOM)
+    time.sleep(4)
+    active_games = determine_active_games(driver)
+    print(active_games)
+    print(type(active_games))
+    if active_games > MAX_GAMES:
+        print("Already have enough games. Exiting now.")
+        exit()
+    driver.get("https://zooescape.com/backgammon-room.pl")
+    time.sleep(3)
+    games_to_join = get_games_to_join(driver)
 
-for game in games_to_join:
-    join_a_game(game, driver)
+    for game in games_to_join:
+        join_a_game(game, driver)
 
+    for index in range(5):
+        response = start_a_new_game(driver)
+        if response == -1:
+            print("can't join any more games")
+            break
 
-for index in range(5):
-    response = start_a_new_game(driver)
-    if response == -1:
-        print("can't join any more games")
-        break
-
-driver.close()
+    driver.close()
