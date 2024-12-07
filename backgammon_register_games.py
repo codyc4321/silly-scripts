@@ -1,4 +1,7 @@
+import os
 import time 
+
+from dotenv import load_dotenv
 
 from getpass import getpass
 
@@ -8,21 +11,40 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
+from selenium.webdriver.chrome.options import Options
 
 # webdriver wait and is visible
 # https://stackoverflow.com/questions/72754651/attributeerror-webdriver-object-has-no-attribute-find-element-by-xpath
 
 HOST_URL = "https://zooescape.com"
+BACKGAMMON_ROOM = HOST_URL + "/backgammon-room.pl"
+JOIN_GAME_URL = HOST_URL + "/game-join.pl?v=200"
 
-BACKGAMMON_ROOM = "https://zooescape.com/backgammon-room.pl"
-
-JOIN_GAME_URL = "https://zooescape.com/game-join.pl?v=200"
-
-MINIMUM_CHALLENGE_RATING = "1675"
-
+MINIMUM_CHALLENGE_RATING = 1600
 GAME_START_ERROR_MESSAGE = "Unable to start game since"
-
 MAX_GAMES = 280
+    
+load_dotenv()
+PASSWORD = os.getenv("BACKGAMMON_PW")
+
+
+def log_in(driver):
+    
+    def attempt_login(driver):
+        driver.get("https://zooescape.com")
+        driver.find_element("id", "userName").send_keys("codyc4321")
+        driver.find_element("id", "password").send_keys(PASSWORD)
+        driver.find_element("xpath", "//input[@value='Log in']").click()
+        time.sleep(3)
+
+    while True:
+        attempt_login(driver)
+        page_soup = BeautifulSoup(driver.page_source, "html.parser")
+        login_confirmation_tag = page_soup.find("a", id="ze_link_codyc4321")
+        if not login_confirmation_tag:
+            print("\nSorry, login failed. Try again")
+        else:
+            break
 
 
 def determine_active_games(driver):
@@ -37,27 +59,7 @@ def determine_active_games(driver):
             games_count_span = div.find("span", class_="xsmall")
             games_count = int(games_count_span.text.replace("(", "").replace(")", "").strip())
             return games_count
-    
-
-def log_in(driver):
-    
-    def attempt_login(driver):
-        driver.get("https://zooescape.com")
-        driver.find_element("id", "userName").send_keys("codyc4321")
-        password = getpass("Please enter your password: ")
-        driver.find_element("id", "password").send_keys(password)
-        driver.find_element("xpath", "//input[@value='Log in']").click()
-        time.sleep(3)
-
-    while True:
-        attempt_login(driver)
-        page_soup = BeautifulSoup(driver.page_source, "html.parser")
-        login_confirmation_tag = page_soup.find("a", id="ze_link_codyc4321")
-        if not login_confirmation_tag:
-            print("\nSorry, login failed. Try again")
-        else:
-            break
-
+        
 
 def get_games_to_join(driver):
     # filter by rating
@@ -73,7 +75,7 @@ def get_games_to_join(driver):
             rating = int(rating_cell.text.strip())
             print(rating)
             username = rating_cell.findPrevious("td").find("a").text.strip()
-            if rating > 1650:
+            if rating > MINIMUM_CHALLENGE_RATING:
                 print(f"Acceptable rating of {rating}: adding game w/ user {username}")
                 relative_games_to_join.append(a_tag["href"])
 
@@ -93,7 +95,7 @@ def start_a_new_game(driver):
     driver.get(JOIN_GAME_URL)
     time.sleep(3)
     select = Select(driver.find_element("id", "game_start_rating_min"))
-    select.select_by_value(MINIMUM_CHALLENGE_RATING)
+    select.select_by_value(str(MINIMUM_CHALLENGE_RATING))
     driver.find_element("xpath", "//input[@value=' Start Game ']").click()
     if GAME_START_ERROR_MESSAGE in driver.page_source:
         print("games full!")
@@ -105,6 +107,9 @@ def start_a_new_game(driver):
 
 
 if __name__ == "__main__":
+    chrome_options = Options()
+    chrome_options.add_argument("--headless=new")
+    # driver = webdriver.Chrome(options=chrome_options)
     driver = webdriver.Chrome()
     log_in(driver)
     driver.get(BACKGAMMON_ROOM)
